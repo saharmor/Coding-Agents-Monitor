@@ -11,6 +11,7 @@ The widget is intentionally small and always-on-top. It shows the current 5-hour
 - Green usage bars below 70%, orange from 70% to 89%, and red from 90% upward.
 - Bundled transparent PNG logos from `assets/claude-logo.png` and `assets/codex-logo.png`.
 - Missing or stale state when local usage sources are unavailable.
+- A lightweight 30-second UI clock tick for reset countdown labels; provider usage files are still read only when they change.
 
 ## How It Works
 

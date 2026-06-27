@@ -1,10 +1,14 @@
 import AppKit
+import Combine
 import SwiftUI
 import UsageCore
 
 struct WidgetView: View {
     @ObservedObject var store: UsageStore
     @State private var showsWeekly = false
+    @State private var now = Date()
+
+    private let clockTimer = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -43,8 +47,8 @@ struct WidgetView: View {
                 .foregroundStyle(.secondary)
             }
 
-            ProviderView(provider: .claude, snapshot: store.claude, showsWeekly: showsWeekly)
-            ProviderView(provider: .codex, snapshot: store.codex, showsWeekly: showsWeekly)
+            ProviderView(provider: .claude, snapshot: store.claude, showsWeekly: showsWeekly, now: now)
+            ProviderView(provider: .codex, snapshot: store.codex, showsWeekly: showsWeekly, now: now)
         }
         .padding(10)
         .frame(width: 220)
@@ -55,6 +59,9 @@ struct WidgetView: View {
                 object: nil,
                 userInfo: ["showsWeekly": value]
             )
+        }
+        .onReceive(clockTimer) { value in
+            now = value
         }
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -70,6 +77,7 @@ private struct ProviderView: View {
     var provider: UsageProvider
     var snapshot: UsageSnapshot?
     var showsWeekly: Bool
+    var now: Date
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -79,7 +87,7 @@ private struct ProviderView: View {
                     .opacity(snapshot == nil ? 0.55 : 1)
                     .help(provider.displayName)
 
-                UsageMeter(label: "5h", window: snapshot?.fiveHour, emptyText: statusText)
+                UsageMeter(label: "5h", window: snapshot?.fiveHour, emptyText: statusText, now: now)
             }
 
             if showsWeekly {
@@ -87,7 +95,7 @@ private struct ProviderView: View {
                     Color.clear
                         .frame(width: 16, height: 16)
 
-                    UsageMeter(label: "7d", window: snapshot?.sevenDay, emptyText: statusText)
+                    UsageMeter(label: "7d", window: snapshot?.sevenDay, emptyText: statusText, now: now)
                 }
             }
         }
@@ -97,7 +105,7 @@ private struct ProviderView: View {
         guard let snapshot else {
             return "waiting"
         }
-        let age = Date().timeIntervalSince(snapshot.updatedAt)
+        let age = now.timeIntervalSince(snapshot.updatedAt)
         if age > 600 {
             return "stale \(Int(age / 60))m"
         }
@@ -161,6 +169,7 @@ private struct UsageMeter: View {
     var label: String
     var window: LimitWindow?
     var emptyText: String
+    var now: Date
 
     var body: some View {
         VStack(spacing: 2) {
@@ -173,7 +182,7 @@ private struct UsageMeter: View {
                         Capsule().fill(Color.white.opacity(0.12))
                         Capsule()
                             .fill(color)
-                            .frame(width: geometry.size.width * CGFloat((window?.usedPercent ?? 0) / 100))
+                            .frame(width: geometry.size.width * CGFloat((displayedUsedPercent ?? 0) / 100))
                     }
                 }
                 .frame(height: 6)
@@ -190,8 +199,22 @@ private struct UsageMeter: View {
         }
     }
 
-    private var usedText: String {
+    private var displayedUsedPercent: Double? {
         guard let used = window?.usedPercent else {
+            return nil
+        }
+        return resetHasPassed ? 0 : used
+    }
+
+    private var resetHasPassed: Bool {
+        guard let resetsAt = window?.resetsAt else {
+            return false
+        }
+        return resetsAt <= now
+    }
+
+    private var usedText: String {
+        guard let used = displayedUsedPercent else {
             return "--"
         }
         return "\(Int(round(used)))%"
@@ -204,11 +227,11 @@ private struct UsageMeter: View {
         guard let date = window?.resetsAt else {
             return "reset unknown"
         }
-        return ResetFormatter.shared.string(from: date)
+        return ResetFormatter.shared.string(from: date, now: now)
     }
 
     private var color: Color {
-        guard let used = window?.usedPercent else {
+        guard let used = displayedUsedPercent else {
             return .gray
         }
         if used >= 90 {
@@ -238,12 +261,12 @@ private final class ResetFormatter {
         return formatter
     }()
 
-    func string(from date: Date) -> String {
-        let seconds = date.timeIntervalSinceNow
+    func string(from date: Date, now: Date) -> String {
+        let seconds = date.timeIntervalSince(now)
         let relative: String
 
         if seconds <= 0 {
-            relative = "now"
+            return "reset passed (\(clockString(from: date, now: now)))"
         } else if seconds < 60 * 60 {
             let minutes = max(1, min(59, Int(ceil(seconds / 60))))
             relative = minutes == 1 ? "1 min" : "\(minutes) mins"
@@ -251,11 +274,11 @@ private final class ResetFormatter {
             relative = "\(max(1, Int(seconds / (60 * 60))))h"
         }
 
-        return "resets in \(relative) (\(clockString(from: date)))"
+        return "resets in \(relative) (\(clockString(from: date, now: now)))"
     }
 
-    private func clockString(from date: Date) -> String {
-        if Calendar.current.isDateInToday(date) {
+    private func clockString(from date: Date, now: Date) -> String {
+        if Calendar.current.isDate(date, inSameDayAs: now) {
             return normalizedClock(timeFormatter.string(from: date))
         }
         return normalizedClock(dateFormatter.string(from: date))
