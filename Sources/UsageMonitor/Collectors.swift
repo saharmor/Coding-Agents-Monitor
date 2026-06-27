@@ -7,6 +7,7 @@ final class CodexUsageCollector: @unchecked Sendable {
     private let onSnapshot: (UsageSnapshot) -> Void
     private var offsets: [URL: UInt64] = [:]
     private var watcher: FSEventWatcher?
+    private var scanScheduled = false
 
     init(root: URL, onSnapshot: @escaping (UsageSnapshot) -> Void) {
         self.root = root
@@ -18,7 +19,7 @@ final class CodexUsageCollector: @unchecked Sendable {
             self.scanInitial()
             if FileManager.default.fileExists(atPath: self.root.path) {
                 self.watcher = FSEventWatcher(paths: [self.root.path]) { [weak self] in
-                    self?.scanIncremental()
+                    self?.scheduleIncrementalScan()
                 }
                 self.watcher?.start()
             }
@@ -43,31 +44,43 @@ final class CodexUsageCollector: @unchecked Sendable {
         }
     }
 
-    private func scanIncremental() {
+    private func scheduleIncrementalScan() {
         queue.async {
-            for file in self.codexFiles().prefix(30) {
-                let size = self.fileSize(file)
-                let offset = self.offsets[file] ?? 0
-                defer { self.offsets[file] = size }
+            guard !self.scanScheduled else {
+                return
+            }
+            self.scanScheduled = true
+            self.queue.asyncAfter(deadline: .now() + 0.2) {
+                let files = Array(self.codexFiles().prefix(30))
+                self.scanScheduled = false
+                self.scanIncremental(files: files)
+            }
+        }
+    }
 
-                if offset == 0 || size < offset {
-                    if let snapshot = self.latestTokenCount(in: file) {
-                        DispatchQueue.main.async {
-                            self.onSnapshot(snapshot)
-                        }
+    private func scanIncremental(files: [URL]) {
+        for file in files {
+            let size = fileSize(file)
+            let offset = offsets[file] ?? 0
+            defer { offsets[file] = size }
+
+            if offset == 0 || size < offset {
+                if let snapshot = latestTokenCount(in: file) {
+                    DispatchQueue.main.async {
+                        self.onSnapshot(snapshot)
                     }
-                    continue
                 }
+                continue
+            }
 
-                guard size > offset, let data = self.readFile(file, from: offset) else {
-                    continue
-                }
-                let text = String(decoding: data, as: UTF8.self)
-                for line in text.split(separator: "\n", omittingEmptySubsequences: true) {
-                    if let snapshot = CodexTokenCountParser.parseLine(String(line)) {
-                        DispatchQueue.main.async {
-                            self.onSnapshot(snapshot)
-                        }
+            guard size > offset, let data = readFile(file, from: offset) else {
+                continue
+            }
+            let text = String(decoding: data, as: UTF8.self)
+            for line in text.split(separator: "\n", omittingEmptySubsequences: true) {
+                if let snapshot = CodexTokenCountParser.parseLine(String(line)) {
+                    DispatchQueue.main.async {
+                        self.onSnapshot(snapshot)
                     }
                 }
             }

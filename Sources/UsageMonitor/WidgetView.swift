@@ -147,11 +147,26 @@ private extension UsageProvider {
         }
     }
 
-    var logoImage: NSImage? {
-        if let namedImage = NSImage(named: logoResourceName) {
+    @MainActor var logoImage: NSImage? {
+        switch self {
+        case .claude:
+            return ProviderLogoCache.claude
+        case .codex:
+            return ProviderLogoCache.codex
+        }
+    }
+}
+
+@MainActor
+private enum ProviderLogoCache {
+    static let claude = loadImage(named: UsageProvider.claude.logoResourceName)
+    static let codex = loadImage(named: UsageProvider.codex.logoResourceName)
+
+    private static func loadImage(named name: String) -> NSImage? {
+        if let namedImage = NSImage(named: name) {
             return namedImage
         }
-        guard let url = Bundle.main.url(forResource: logoResourceName, withExtension: "png") else {
+        guard let url = Bundle.main.url(forResource: name, withExtension: "png") else {
             return nil
         }
         return NSImage(contentsOf: url)

@@ -45,10 +45,12 @@ final class FSEventWatcher: @unchecked Sendable {
             UInt32(kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagUseCFTypes)
         )
 
-        if let stream {
-            FSEventStreamSetDispatchQueue(stream, queue)
-            FSEventStreamStart(stream)
+        guard let stream else {
+            return
         }
+
+        FSEventStreamSetDispatchQueue(stream, queue)
+        FSEventStreamStart(stream)
     }
 
     func stop() {
