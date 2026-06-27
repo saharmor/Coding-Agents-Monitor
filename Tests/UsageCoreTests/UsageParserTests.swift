@@ -63,6 +63,23 @@ import Testing
     #expect(snapshot.context?.tokens == 1250)
 }
 
+@Test func treatsZeroResetTimestampsAsUnknown() throws {
+    let data = """
+    {
+      "provider": "claude",
+      "fiveHour": { "usedPercent": 0, "remainingPercent": 100, "resetsAt": 0 },
+      "sevenDay": { "usedPercent": 12, "remainingPercent": 88, "resetsAt": 1783151769 },
+      "updatedAt": "2026-06-27T12:00:00Z",
+      "source": "claude-statusline"
+    }
+    """.data(using: .utf8)!
+
+    let snapshot = try #require(ClaudeStatusLineParser.parseData(data))
+    #expect(snapshot.fiveHour?.resetsAt == nil)
+    #expect(snapshot.fiveHour?.usedPercent == 0)
+    #expect(snapshot.sevenDay?.resetsAt != nil)
+}
+
 @Test func parsesClaudeOAuthUsageAsRemainingPercent() throws {
     let data = """
     {

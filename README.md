@@ -12,6 +12,7 @@ The widget is intentionally small and always-on-top. It shows the current 5-hour
 - Bundled transparent PNG logos from `assets/claude-logo.png` and `assets/codex-logo.png`.
 - Missing or stale state when local usage sources are unavailable.
 - A lightweight 30-second UI clock tick for reset countdown labels; provider usage files are still read only when they change.
+- If a reset time passes before a fresh local usage sample arrives, the affected row shows `waiting for update` instead of inventing a new percentage.
 
 ## How It Works
 

@@ -87,7 +87,13 @@ private struct ProviderView: View {
                     .opacity(snapshot == nil ? 0.55 : 1)
                     .help(provider.displayName)
 
-                UsageMeter(label: "5h", window: snapshot?.fiveHour, emptyText: statusText, now: now)
+                UsageMeter(
+                    label: "5h",
+                    window: snapshot?.fiveHour,
+                    snapshotUpdatedAt: snapshot?.updatedAt,
+                    emptyText: statusText,
+                    now: now
+                )
             }
 
             if showsWeekly {
@@ -95,7 +101,13 @@ private struct ProviderView: View {
                     Color.clear
                         .frame(width: 16, height: 16)
 
-                    UsageMeter(label: "7d", window: snapshot?.sevenDay, emptyText: statusText, now: now)
+                    UsageMeter(
+                        label: "7d",
+                        window: snapshot?.sevenDay,
+                        snapshotUpdatedAt: snapshot?.updatedAt,
+                        emptyText: statusText,
+                        now: now
+                    )
                 }
             }
         }
@@ -168,6 +180,7 @@ private struct ProviderLogo: View {
 private struct UsageMeter: View {
     var label: String
     var window: LimitWindow?
+    var snapshotUpdatedAt: Date?
     var emptyText: String
     var now: Date
 
@@ -203,14 +216,18 @@ private struct UsageMeter: View {
         guard let used = window?.usedPercent else {
             return nil
         }
-        return resetHasPassed ? 0 : used
+        return needsFreshSample ? nil : used
     }
 
-    private var resetHasPassed: Bool {
-        guard let resetsAt = window?.resetsAt else {
+    private var needsFreshSample: Bool {
+        guard
+            let resetsAt = window?.resetsAt,
+            let snapshotUpdatedAt,
+            resetsAt <= now
+        else {
             return false
         }
-        return resetsAt <= now
+        return snapshotUpdatedAt < resetsAt
     }
 
     private var usedText: String {
@@ -223,6 +240,9 @@ private struct UsageMeter: View {
     private var resetText: String {
         if window == nil {
             return emptyText
+        }
+        if needsFreshSample {
+            return "waiting for update"
         }
         guard let date = window?.resetsAt else {
             return "reset unknown"
@@ -266,7 +286,7 @@ private final class ResetFormatter {
         let relative: String
 
         if seconds <= 0 {
-            return "reset passed (\(clockString(from: date, now: now)))"
+            return "waiting for update"
         } else if seconds < 60 * 60 {
             let minutes = max(1, min(59, Int(ceil(seconds / 60))))
             relative = minutes == 1 ? "1 min" : "\(minutes) mins"

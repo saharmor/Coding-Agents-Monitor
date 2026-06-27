@@ -68,7 +68,7 @@ enum UsageJSON {
     }
 
     static func dateFromUnixSeconds(_ value: Double?) -> Date? {
-        guard let value else {
+        guard let value, value > 0 else {
             return nil
         }
         return Date(timeIntervalSince1970: value)

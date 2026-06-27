@@ -57,10 +57,11 @@ function clampPercent(value) {
 
 function resetSeconds(value) {
   const number = finiteNumber(value);
-  if (number !== null) return number;
+  if (number !== null) return number > 0 ? number : null;
   if (typeof value !== 'string' || value.trim() === '') return null;
   const millis = Date.parse(value);
-  return Number.isFinite(millis) ? millis / 1000 : null;
+  if (!Number.isFinite(millis) || millis <= 0) return null;
+  return millis / 1000;
 }
 
 function normalizeStatusLineWindow(raw) {
