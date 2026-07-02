@@ -20,7 +20,7 @@ struct WidgetView: View {
             }
         }
         .padding(isCollapsed ? 7 : 10)
-        .frame(width: isCollapsed ? 144 : 220)
+        .frame(width: isCollapsed ? 160 : 220)
         .fixedSize(horizontal: false, vertical: true)
         .onChange(of: isCollapsed) { value in
             NotificationCenter.default.post(
@@ -279,6 +279,7 @@ private struct CollapsedProviderView: View {
                 .font(.system(size: 9, weight: .bold, design: .rounded))
                 .foregroundStyle(textColor)
                 .monospacedDigit()
+                .lineLimit(1)
                 .frame(width: usedTextWidth, alignment: .leading)
 
             if let resetText {
@@ -286,7 +287,9 @@ private struct CollapsedProviderView: View {
                     .font(.system(size: 7, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
-                    .frame(width: 16, alignment: .leading)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .frame(width: 20, alignment: .leading)
             }
         }
         .fixedSize(horizontal: true, vertical: false)
@@ -304,7 +307,10 @@ private struct CollapsedProviderView: View {
         if displayedUsedPercent == nil {
             return 16
         }
-        return usedText.count <= 1 ? 10 : 18
+        if usedText.count <= 1 {
+            return 10
+        }
+        return usedText.count == 2 ? 18 : 24
     }
 
     private var displayedUsedPercent: Double? {
