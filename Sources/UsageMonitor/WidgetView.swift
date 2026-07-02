@@ -20,7 +20,7 @@ struct WidgetView: View {
             }
         }
         .padding(isCollapsed ? 7 : 10)
-        .frame(width: isCollapsed ? 152 : 220)
+        .frame(width: isCollapsed ? 144 : 220)
         .fixedSize(horizontal: false, vertical: true)
         .onChange(of: isCollapsed) { value in
             NotificationCenter.default.post(
@@ -114,7 +114,7 @@ struct WidgetView: View {
                 isCollapsed = false
             }
         } label: {
-            HStack(spacing: 5) {
+            HStack(spacing: 3) {
                 CollapsedProviderView(provider: .claude, snapshot: store.claude, now: now)
 
                 Capsule()
@@ -289,7 +289,7 @@ private struct CollapsedProviderView: View {
                     .frame(width: 16, alignment: .leading)
             }
         }
-        .frame(width: 54, alignment: .leading)
+        .fixedSize(horizontal: true, vertical: false)
         .help("\(provider.displayName) 5-hour usage")
     }
 
